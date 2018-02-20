@@ -36,25 +36,31 @@ class Bundle
 		@bundle = [] #the collection of batches
 	end
 	
-	def create_bundle(file, limit) #file is the path to the .csv, limit determines how many codes are in single batch.
-		all_codes = [] #temporary array of all codes
-		CSV.foreach(file) do |row| #this one will take all values from csv and put into temporary array
-			all_codes << Code.new(row[0]) #row from csv is a table, but we need a value of it that's why we use "row[0]"
-		end
-		
-		while all_codes != [] #it will shift (pop first element) codes from our list. If there's no more codes left the loop will stop.
+	def create_bundle(base,per_batch) #per_batch determines how many codes are in single batch.
+		while base.all_codes != [] #it will shift (pop first element) codes from our list. If there's no more codes left the loop will stop.
 			tmp_batch = Batch.new
-			limit.times do |jmp| # this loop is adding codes to the batches
-				if all_codes == [] #it checks if there are still some codes left, we don't want nils in our batch
+			per_batch.times do |jmp| # this loop is adding codes to the batches
+				if base.all_codes == [] #it checks if there are still some codes left, we don't want nils in our batch
 					break
 				end
-				tmp_batch.add_code(all_codes.shift) 
+				tmp_batch.add_code(base.all_codes.shift) 
 			end
 			@bundle << tmp_batch #adds batch to the collection of batches
 		end
 	end
 end
 
+class Base
+	attr_accessor:all_codes
+	def initialize(file) #file is the path to the .csv, 
+		@all_codes = [] #array of all codes, elements will be popped out when filling batches
+		CSV.foreach(file) do |row| #this one will take all values from csv and put into temporary array
+			@all_codes << Code.new(row[0]) #row from csv is a table, but we need a value of it that's why we use "row[0]"
+		end	
+	end	
+end
+
+db = Base.new(path)
 x = Bundle.new
-x.create_bundle(path,15)
+x.create_bundle(db,3)
 puts x.bundle
