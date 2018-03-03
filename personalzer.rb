@@ -35,11 +35,11 @@ class Batch
 		"Batch number: #{@num}. Contains codes from #{@collection[0].num} to #{@collection[-1].num}."
 	end
 end
-
 class Bundle
-	attr_accessor:batches
+	attr_accessor:batches, :size
 	def initialize
 		@batches = [] #the collection of batches
+		@size = @batches.size
 	end
 	
 	def create_bundle(base,per_batch) #per_batch determines how many codes are in single batch.
@@ -53,9 +53,9 @@ class Bundle
 			end
 			@batches << tmp_batch #adds batch to the collection of batches
 		end
+		@size = @batches.size
 	end
 end
-
 class Base
 	attr_accessor:all_codes
 	def initialize(file) #file is the path to the .csv, 
@@ -65,38 +65,40 @@ class Base
 		end	
 	end	
 end
-
 class Genfile
 	def initialize
 		@pdf = Prawn::Document.new
 	end
 	
-	def on_pg_positioning(per_page,bund_obj)
-		per_page.times do |sb|
-			bund_obj.batches[sb].set_position(0,10*sb)
+	def set_positions(per_page, bund_obj)
+		positions = [[0,0],[0,20],[0,40],[0,60],[0,80]]# I will add methods to customize it in future
+		sections = (bund_obj.size/per_page).to_i
+		
+		sections.times do |sec|
+			per_page.times do |batch|
+				puts bund_obj.batches[batch+(per_page*sec)].set_position(positions[batch][0],positions[batch][1])
+			end
 		end
-	end
-	
-	def make_section(per_page, bund_obj)
-		section = []
-		per_page.times {section << bund_obj.batches.shift}
-		return section			
 	end
 	
 	def single_codes_page(per_page, bund_obj)
-		section_batches = make_section(per_page,bund_obj)
-		section_batches.each do |single_batch|
-			@pdf.draw_text "#{single_batch.collection.shift.code}", at:[single_batch.position[:xaxis],single_batch.position[:yaxis]]
+		per_page.times do |single_batch|
+			@pdf.draw_text "#{bund_obj.batches[single_batch].collection.shift.code}", at:[bund_obj.batches[single_batch].position[:xaxis],bund_obj.batches[single_batch].position[:yaxis]]
 		end
-		@pdf.render_file "tescior.pdf"
+		@pdf.start_new_page
 	end
 	
+	def make_doc
+		@pdf.render_file "testowiutki.pdf"
+	end
 end
 db = Base.new(path)
-x = Bundle.new
-x.create_bundle(db,10)
-puts x.batches[0]#.collection[0].code
+bund_obj = Bundle.new
+bund_obj.create_bundle(db,10)
+#puts bund_obj.size
+#puts bund_obj.batches[0]#.collection[0].code
 
 f = Genfile.new
-f.on_pg_positioning(5,x)
-f.single_codes_page(5,x)
+f.set_positions(5,bund_obj)
+10.times {f.single_codes_page(5,bund_obj)}
+f.make_doc
