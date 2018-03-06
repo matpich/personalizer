@@ -66,32 +66,48 @@ class Base
 	end	
 end
 class Genfile
+	require "prawn/measurement_extensions"
 	def initialize
-		@pdf = Prawn::Document.new
+		@pdf = Prawn::Document.new(:page_size => [100.mm,100.mm])
 	end
 	
-	def set_positions(per_page, bund_obj)
+	def set_positions(per_page, bund_obj) #this method assign positions to the batches
 		positions = [[0,0],[0,20],[0,40],[0,60],[0,80]]# I will add methods to customize it in future
-		sections = (bund_obj.size/per_page).to_i
+		sections = (bund_obj.size/per_page).to_i #it calculates how many sections will appear (ex. blank sheet between batches)
 		
 		sections.times do |sec|
 			per_page.times do |batch|
-				puts bund_obj.batches[batch+(per_page*sec)].set_position(positions[batch][0],positions[batch][1])
+				bund_obj.batches[batch+(per_page*sec)].set_position(positions[batch][0],positions[batch][1])
 			end
 		end
 	end
 	
-	def single_codes_page(per_page, bund_obj)
+	def single_codes_page(per_page, bund_obj)  #it will arrange codes only on 1 page
 		per_page.times do |single_batch|
 			@pdf.draw_text "#{bund_obj.batches[single_batch].collection.shift.code}", at:[bund_obj.batches[single_batch].position[:xaxis],bund_obj.batches[single_batch].position[:yaxis]]
 		end
 		@pdf.start_new_page
 	end
 	
+	def batch_codes_pages(per_page,per_batch,bund_obj) #per_batch is number of codes in batch
+		spacer(per_page, bund_obj)
+		per_batch.times {single_codes_page(per_page,bund_obj)}
+		bund_obj.batches.slice!(0...per_page)
+	end
+	
+	def spacer(per_page, bund_obj)
+		per_page.times do |single_batch|
+			@pdf.draw_text "#{bund_obj.batches[single_batch]}", at:[bund_obj.batches[single_batch].position[:xaxis],bund_obj.batches[single_batch].position[:yaxis]]
+		end
+		@pdf.start_new_page
+	end	
+	
 	def make_doc
 		@pdf.render_file "testowiutki.pdf"
 	end
 end
+
+#below is a mess but it's only for testing
 db = Base.new(path)
 bund_obj = Bundle.new
 bund_obj.create_bundle(db,10)
@@ -100,5 +116,6 @@ bund_obj.create_bundle(db,10)
 
 f = Genfile.new
 f.set_positions(5,bund_obj)
-10.times {f.single_codes_page(5,bund_obj)}
+f.batch_codes_pages(5,10,bund_obj)
+f.batch_codes_pages(5,10,bund_obj)
 f.make_doc
